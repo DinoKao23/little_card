@@ -107,32 +107,34 @@ def automize_openpyxl(wb, pu_code, rubber_code, fabric_code, liner_code, uv_code
 
     if uv != 'NA':
         sht["A4"] = f"""COMPOSITION
-    {rubber}: 
-    {fabric}: 
-    {liner}:
-    DRY POLYURETHANE 
-    +TOP COATING & UV PRINT:"""
+{rubber}: 
+{fabric}: 
+{liner}:
+DRY POLYURETHANE 
++TOP COATING & UV PRINT:"""
         sht["D4"] = f"""Weight %
-    {rubber_weight_percent}%
-    {fabric_weight_percent}%
-    {liner_weight_percent}%
+{rubber_weight_percent}%
+{fabric_weight_percent}%
+{liner_weight_percent}%
 
-    {uv_pu_weight_percent}%"""
+{uv_pu_weight_percent}%"""
     else:
         sht["A4"] = f"""COMPOSITION
-    {rubber}:
-    {fabric}:
-    {liner}:
-    DRY POLYURETHANE:"""
-        sht["D4"] = f"""Weight %
-    {rubber_weight_percent}%
-    {fabric_weight_percent}%
-    {liner_weight_percent}%
+{rubber}:
+{fabric}:
+{liner}:
+DRY POLYURETHANE:"""
+        sht["D4"] = f"""
+{rubber_weight_percent}%
+{fabric_weight_percent}%
+{liner_weight_percent}%
 
-    {pu_weight_percent}%"""
+{pu_weight_percent}%"""
 
     sht["A4"].alignment = wrap_alignment
-    sht["D4"].alignment = wrap_alignment
+    wrap_left_alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+    sht["D4"].alignment = wrap_left_alignment
+
 
     sht["A11"] = "ESTIMATED BIOBASED:"
     sht["D11"] = f"{biobased}%"
@@ -229,12 +231,12 @@ liner_df = liner_df.with_columns(
 dropdown_dataframes = [pu_df, rubber_df, fabric_df, liner_df, uv_print_df, liner_texture_df]
 dropdown_columns = ["Short Name", "Short Name", "Short Name", "Short Name", "Short Name", "Surface Texture & Finish"]
 dropdown_titles = [
-    "Select PU Option", 
-    "Select Rubber Option", 
-    "Select Fabric Option", 
-    "Select Liner Option", 
-    "Select UV Print Option", 
-    "Select Liner Texture Option"
+    "選擇 PU", 
+    "選擇 Rubber", 
+    "選擇 Fabric", 
+    "選擇 Liner", 
+    "選擇 UV Print", 
+    "選擇 Liner Texture"
 ]
 
 # ✅ **Initialize Session State**
@@ -251,7 +253,7 @@ def map_selection_to_code(selected_value, df, col_name):
         return None  # Return None if not found
 
 # Streamlit UI
-st.title("Multi-Option Selection")
+st.title("綠色小卡製作")
 
 num_options = len(dropdown_dataframes)  # Automatically set size based on dropdowns
 if "user_selections" not in st.session_state:
@@ -268,7 +270,7 @@ for i, df in enumerate(dropdown_dataframes):
     st.session_state.user_selections[i] = map_selection_to_code(selected_value, df, col_name)
 
 # 📌 **Sheet Name Input**
-sheet_name = st.text_input("Enter Sheet Name", value=st.session_state.get("sheet_name", ""))
+sheet_name = st.text_input("輸入表單名稱", value=st.session_state.get("sheet_name", ""))
 st.session_state.sheet_name = sheet_name
 if "workbook" not in st.session_state:
     st.session_state.workbook = openpyxl.Workbook()
@@ -313,12 +315,12 @@ if st.button("完成表單選擇"):
         st.download_button(
             label="📥 下載文件",
             data=output,
-            file_name="consolidated_automation.xlsx",
+            file_name="小卡.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
 # 🔄 **Restart Button**
-if st.button("清除以存取表單"):
+if st.button("清除已存取表單"):
     st.session_state.user_selections = [None] * num_options
     st.session_state.sheet_name = ""
 
