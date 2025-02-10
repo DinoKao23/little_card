@@ -1,7 +1,5 @@
 import streamlit as st
 import polars as pl
-import pandas as pd
-import openpyxl
 import xlwings as xw
 import atexit
 import time
