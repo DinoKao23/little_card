@@ -1,4 +1,4 @@
 streamlit
 polars
-xlwings
+openpyxl
 fastexcel
