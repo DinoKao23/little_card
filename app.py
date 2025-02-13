@@ -3,12 +3,14 @@ import polars as pl
 import openpyxl
 from openpyxl.styles import PatternFill, Border, Side, Alignment
 from openpyxl.styles import Border, Side
+
+from datetime import date
 import io
 
 
 
 
-def automize_openpyxl(wb, pu_code, rubber_code, fabric_code, liner_code, uv_code, liner_texture_code, sheet_name = None):
+def automize_openpyxl(wb, company_code, pu_code, rubber_code, fabric_code, liner_code, uv_code, liner_texture_code, date, sheet_name = None):
     pu_thickness = pu_df.filter(pl.col("SurrogateKey") == pu_code).select("THICKNESS_mm").item()
     rubber_thickness = rubber_df.filter(pl.col("SurrogateKey") == rubber_code).select("THICKNESS_mm").item()
     fabric_thickness = fabric_df.filter(pl.col("SurrogateKey") == fabric_code).select("THICKNESS_mm").item()
@@ -68,21 +70,23 @@ def automize_openpyxl(wb, pu_code, rubber_code, fabric_code, liner_code, uv_code
     wrap_alignment = Alignment(wrap_text=True, vertical="top")
 
     # Define data
-    liner_texture = liner_texture_df.filter(pl.col('SurrogateKey') == 1).select(pl.col('Texture No.')).item()
-    liner_number = liner_df.filter(pl.col('SurrogateKey') == 1).select(pl.col('Natuura_key')).item()
-    rubber = rubber_df.filter(pl.col('SurrogateKey') == 1).select(pl.col('Short Name')).item()
-    fabric = fabric_df.filter(pl.col('SurrogateKey') == 1).select(pl.col('Short Name')).item()
-    liner = liner_df.filter(pl.col('SurrogateKey') == 1).select(pl.col('Short Name')).item()
-    uv = uv_print_df.filter(pl.col('SurrogateKey') == 1).select(pl.col('Short Name')).item()
+    company = company_df.filter(pl.col('SurrogateKey') == company_code).select(pl.col('Short Name')).item()
+    liner_texture = liner_texture_df.filter(pl.col('SurrogateKey') == liner_texture_code).select(pl.col('Texture No.')).item()
+    liner_number = liner_df.filter(pl.col('SurrogateKey') == liner_code).select(pl.col('Natuura_key')).item()
+    rubber = rubber_df.filter(pl.col('SurrogateKey') == rubber_code).select(pl.col('Short Name')).item()
+    fabric = fabric_df.filter(pl.col('SurrogateKey') == fabric_code).select(pl.col('Short Name')).item()
+    liner = liner_df.filter(pl.col('SurrogateKey') == liner_code).select(pl.col('Short Name')).item()
+    uv = uv_print_df.filter(pl.col('SurrogateKey') == uv_code).select(pl.col('Short Name')).item()
+    date_str = date.strftime("%Y-%m-%d")
 
     # Merge cells and apply data
-    sht["A1"] = "Company\nTORY BURCH"
+    sht["A1"] = f"Company\n{company}"
     sht["A1"].alignment = wrap_alignment
     sht["B1"] = "BRAND\nLUCID MAT™"
     sht["B1"].alignment = wrap_alignment
     sht["C1"] = "STYLE\nPatent"
     sht["C1"].alignment = wrap_alignment
-    sht["D1"] = "DATE\n2025-01-20"
+    sht["D1"] = f"DATE\n{date_str}"
     sht["D1"].alignment = wrap_alignment
 
     sht["A2"] = f"FINISH UV printing/glossy"
@@ -128,7 +132,6 @@ DRY POLYURETHANE:"""
 {rubber_weight_percent}%
 {fabric_weight_percent}%
 {liner_weight_percent}%
-
 {pu_weight_percent}%"""
 
     sht["A4"].alignment = wrap_alignment
@@ -140,6 +143,9 @@ DRY POLYURETHANE:"""
     sht["D11"] = f"{biobased}%"
     sht["D11"].alignment = wrap_alignment
 
+    if uv == 'NA':
+        sht.delete_rows(10)
+    
     sht.merge_cells("A12:D15")
     sht["A12"] = """MOQ / MCQ, SIZE, LEAD TIME
     MOQ – 300m ; MCQ – 300m
@@ -202,10 +208,12 @@ DRY POLYURETHANE:"""
             sht[f"{col}{row}"].border = fix_border_change
 
     # Set column widths
-    sht.column_dimensions["A"].width = 12.56
-    sht.column_dimensions["B"].width = 11.44
+    sht.column_dimensions["A"].width = 13
+    sht.column_dimensions["B"].width = 12
     sht.column_dimensions["C"].width = 11.44
     sht.column_dimensions["D"].width = 15.22
+
+
 
 
 
@@ -219,6 +227,7 @@ fabric_df = pl.read_excel(file_path, sheet_name="Fabric")
 liner_df = pl.read_excel(file_path, sheet_name="Liner")
 liner_texture_df = pl.read_excel(file_path, sheet_name="liner_texture")
 uv_print_df = pl.read_excel(file_path, sheet_name="UV_print")
+company_df = pl.read_excel(file_path, sheet_name="Company")
 
 fabric_df = fabric_df.with_columns(
     unnatural = (pl.col("Short Name").str.contains("PET", strict=False)).cast(pl.Int8())
@@ -228,9 +237,10 @@ liner_df = liner_df.with_columns(
 )
 
 # Define dropdown data
-dropdown_dataframes = [pu_df, rubber_df, fabric_df, liner_df, uv_print_df, liner_texture_df]
-dropdown_columns = ["Short Name", "Short Name", "Short Name", "Short Name", "Short Name", "Surface Texture & Finish"]
+dropdown_dataframes = [company_df, pu_df, rubber_df, fabric_df, liner_df, uv_print_df, liner_texture_df]
+dropdown_columns = ["Short Name" ,"Short Name", "Short Name", "Short Name", "Short Name", "Short Name", "Surface Texture & Finish"]
 dropdown_titles = [
+    "選擇 Company",
     "選擇 PU", 
     "選擇 Rubber", 
     "選擇 Fabric", 
@@ -256,7 +266,9 @@ def map_selection_to_code(selected_value, df, col_name):
 st.title("綠色小卡製作")
 
 num_options = len(dropdown_dataframes)  # Automatically set size based on dropdowns
-if "user_selections" not in st.session_state:
+
+# Ensure session state is initialized with the correct size
+if "user_selections" not in st.session_state or len(st.session_state.user_selections) != num_options:
     st.session_state.user_selections = [None] * num_options
 
 # 🎯 **Display all selections on the same page**
@@ -268,6 +280,9 @@ for i, df in enumerate(dropdown_dataframes):
 
     # Save mapped code to session state
     st.session_state.user_selections[i] = map_selection_to_code(selected_value, df, col_name)
+
+
+selected_date = st.date_input("Select a date", value=date.today())
 
 # 📌 **Sheet Name Input**
 sheet_name = st.text_input("輸入表單名稱", value=st.session_state.get("sheet_name", ""))
@@ -292,12 +307,14 @@ if st.button("建立表單"):
         # Run automation function and append to existing workbook
         automize_openpyxl(
             st.session_state.workbook,
-            pu_code=st.session_state.user_selections[0],
-            rubber_code=st.session_state.user_selections[1],
-            fabric_code=st.session_state.user_selections[2],
-            liner_code=st.session_state.user_selections[3],
-            uv_code=st.session_state.user_selections[4],
-            liner_texture_code=st.session_state.user_selections[5],
+            company_code=st.session_state.user_selections[0],
+            pu_code=st.session_state.user_selections[1],
+            rubber_code=st.session_state.user_selections[2],
+            fabric_code=st.session_state.user_selections[3],
+            liner_code=st.session_state.user_selections[4],
+            uv_code=st.session_state.user_selections[5],
+            liner_texture_code=st.session_state.user_selections[6],
+            date = selected_date,
             sheet_name=sheet_name
         )
 
